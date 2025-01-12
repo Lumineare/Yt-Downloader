@@ -1,0 +1,1 @@
+yt-dlp --cookies cookies.txt <URL_video>
