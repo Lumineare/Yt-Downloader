@@ -1,5 +1,6 @@
 from flask import Flask, render_template, request, jsonify
 from yt_dlp import YoutubeDL
+import tempfile
 import os
 
 app = Flask(__name__)
@@ -23,24 +24,31 @@ COOKIES = """
 
 def get_video_formats(url):
     """Retrieve available formats for a given video URL."""
-    ydl_opts = {
-        'quiet': True,
-        'noplaylist': True,
-        'cookiefile': '-',  # Gunakan '-' untuk menggunakan string cookies
-        'cookie_data': COOKIES.strip()  # Tambahkan cookies ke dalam opsi
-    }
-    with YoutubeDL(ydl_opts) as ydl:
-        info = ydl.extract_info(url, download=False)
-        formats = [
-            {
-                'format_id': f['format_id'],
-                'resolution': f.get('resolution', 'audio only'),
-                'ext': f['ext'],
-                'filesize': f.get('filesize', 'Unknown')
-            }
-            for f in info['formats'] if 'filesize' in f
-        ]
-        return formats
+    with tempfile.NamedTemporaryFile(delete=False, mode='w', suffix='.txt') as cookie_file:
+        cookie_file.write(COOKIES.strip())
+        cookie_file_path = cookie_file.name
+    
+    try:
+        ydl_opts = {
+            'quiet': True,
+            'noplaylist': True,
+            'cookiefile': cookie_file_path,  # Gunakan file cookies sementara
+        }
+        with YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(url, download=False)
+            formats = [
+                {
+                    'format_id': f['format_id'],
+                    'resolution': f.get('resolution', 'audio only'),
+                    'ext': f['ext'],
+                    'filesize': f.get('filesize', 'Unknown')
+                }
+                for f in info['formats'] if 'filesize' in f
+            ]
+            return formats
+    finally:
+        # Hapus file cookie setelah selesai
+        os.remove(cookie_file_path)
 
 @app.route('/get_formats', methods=['POST'])
 def get_formats():
