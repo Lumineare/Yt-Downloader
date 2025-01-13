@@ -6,19 +6,26 @@ app = Flask(__name__)
 
 def get_video_formats(url):
     """Retrieve available formats for a given video URL."""
-    ydl_opts = {'quiet': True, 'noplaylist': True}
-    with YoutubeDL(ydl_opts) as ydl:
-        info = ydl.extract_info(url, download=False)
-        formats = [
-            {
-                'format_id': f['format_id'],
-                'resolution': f.get('resolution', 'audio only'),
-                'ext': f['ext'],
-                'filesize': f.get('filesize', 'Unknown')
-            }
-            for f in info['formats'] if 'filesize' in f
-        ]
-        return formats
+    ydl_opts = {
+        'quiet': True,
+        'noplaylist': True,
+        'cookiefile': 'cookies.txt'  # Path ke file cookies
+    }
+    try:
+        with YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(url, download=False)
+            formats = [
+                {
+                    'format_id': f['format_id'],
+                    'resolution': f.get('resolution', 'audio only'),
+                    'ext': f['ext'],
+                    'filesize': f.get('filesize', 'Unknown')
+                }
+                for f in info['formats'] if 'filesize' in f
+            ]
+            return formats
+    except Exception as e:
+        raise Exception(f"Error fetching formats: {str(e)}")
 
 def download_video(url, format_id, output_path="downloads"):
     """Download video with the specified format."""
@@ -27,10 +34,14 @@ def download_video(url, format_id, output_path="downloads"):
 
     options = {
         'outtmpl': f'{output_path}/%(title)s.%(ext)s',
-        'format': format_id
+        'format': format_id,
+        'cookiefile': 'cookies.txt'  # Path ke file cookies
     }
-    with YoutubeDL(options) as ydl:
-        ydl.download([url])
+    try:
+        with YoutubeDL(options) as ydl:
+            ydl.download([url])
+    except Exception as e:
+        raise Exception(f"Error downloading video: {str(e)}")
 
 @app.route('/')
 def index():
